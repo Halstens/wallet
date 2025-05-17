@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: walletdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  wallet-api:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    env_file:
+      - config.env
+
+volumes:
+  postgres_data:
