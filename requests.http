@@ -1,0 +1,4 @@
+curl -X POST http://localhost:8080/api/v1/wallet \
+-H "Content-Type: application/json" \
+-d '{"walletId": "test123", "operationType": "DEPOSIT", "amount": 500}'
+

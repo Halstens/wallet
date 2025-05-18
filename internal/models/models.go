@@ -1,14 +1,18 @@
-package model
+package models
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 )
 
 type OperationType string
 
+var ErrNoRecord = errors.New("models: подходящей записи не найдено")
+
 const (
-	Deposit  OperationType = "DEPOSIT"
-	Withdraw OperationType = "WITHDRAW"
+	DEPOSIT  OperationType = "DEPOSIT"
+	WITHDRAW OperationType = "WITHDRAW"
 )
 
 type Wallet struct {
