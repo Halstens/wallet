@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -23,8 +22,6 @@ type application struct {
 
 func main() {
 	addr := flag.String("addr", ":4000", "Сетевой адрес HTTP")
-	//dsn := flag.String("dsn", "Pavel:fhaar355228F@/tralaleo?parseTime=true", "tralaleo_db")
-	//dsn := flag.String("dsn", "user=postgres password=fhaar355228F host=wallet-db dbname=wallettestdb sslmode=disable", "PostgreSQL connection string")
 
 	flag.Parse()
 
@@ -48,7 +45,6 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// 	log.Println("Successfully connected to PostgreSQL!")
 	db.SetMaxOpenConns(100)
 	defer db.Close()
 
@@ -67,15 +63,4 @@ func main() {
 	infoLog.Printf("Запуск сервера на %s", *addr)
 	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
-}
-
-func openDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, nil
 }

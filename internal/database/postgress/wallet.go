@@ -20,7 +20,6 @@ type WalletRepository struct {
 
 func (wr *WalletRepository) UpdateBalance(id uuid.UUID, amount int, opType models.OperationType) error {
 	var query string
-	//fmt.Println(opType)
 	if amount <= 0 {
 		return fmt.Errorf("amount must be positive")
 	}
@@ -67,7 +66,6 @@ func (wr *WalletRepository) GetBalance(id string) (int64, error) {
 	return balance, err
 }
 
-// Вызываем метод функ. запуска транзакции и если ловим ошибку, пробуем снова
 func (wr *WalletRepository) UpdateBalanceWithRetry(id uuid.UUID, amount int, opType models.OperationType, maxRetries int) error {
 	var lastErr error
 
@@ -82,7 +80,7 @@ func (wr *WalletRepository) UpdateBalanceWithRetry(id uuid.UUID, amount int, opT
 		if errors.As(err, &pgErr) && pgErr.Code == "40P01" {
 			lastErr = err
 			delay := time.Duration(math.Pow(2, float64(i))) * time.Millisecond
-			delay += time.Duration(rand.Intn(100)) * time.Millisecond // Добавляем случайность
+			delay += time.Duration(rand.Intn(100)) * time.Millisecond
 
 			time.Sleep(delay)
 			continue

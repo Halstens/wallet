@@ -96,12 +96,3 @@ func TestShowBalance(t *testing.T) {
 	require.True(t, exists, "Ключ 'balance' отсутствует в ответе")
 	assert.Equal(t, int64(5750), balance, "Неверное значение баланса")
 }
-
-// func getBaseURL(t *testing.T) string {
-// 	baseURL := os.Getenv("API_BASE_URL")
-// 	if baseURL == "" {
-// 		baseURL = "http://127.0.0.1:4000" // Дефолтное значение для локального тестирования
-// 		t.Logf("API_BASE_URL не указан, используется %s", baseURL)
-// 	}
-// 	return baseURL
-// }
