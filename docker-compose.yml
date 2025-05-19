@@ -46,8 +46,8 @@ services:
       wallet-db:
         condition: service_healthy
     environment:
-      - TEST_API_URL=http://wallet-app:4000  # Тесты будут стучаться на основной сервер внутри сети Docker
-    command: ["go", "test", "-v", "./internal/tests"]  # Запуск тестов
+      - TEST_API_URL=http://wallet-app:4000 
+    command: ["go", "test", "-v", "./internal/tests"]  
 
 volumes:
   wallet-data:
