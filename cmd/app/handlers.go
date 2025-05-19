@@ -26,12 +26,12 @@ func (app *application) Transaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := app.wallets.UpdateBalance(request.WalletID, int(request.Amount), request.OperationType)
+	err := app.wallets.UpdateBalanceWithRetry(request.WalletID, int(request.Amount), request.OperationType, 5)
 	if err != nil {
 		app.serverError(w, err)
 	}
 
-	//w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 

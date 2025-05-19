@@ -19,7 +19,14 @@ func NewPostgresDB(cfg *config.Config) (*sqlx.DB, error) {
 		cfg.PostgresSSLMode,
 	)
 
-	db, err := sqlx.Connect("postgres", connStr)
+	fmt.Println(cfg.PostgresHost,
+		cfg.PostgresPort,
+		cfg.PostgresUser,
+		cfg.PostgresPassword,
+		cfg.PostgresDB,
+		cfg.PostgresSSLMode)
+
+	db, err := sqlx.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %v", err)
 	}

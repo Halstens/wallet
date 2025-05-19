@@ -2,107 +2,94 @@ package postgress
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"math"
+	"math/rand"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/wallet/internal/models"
 )
 
 type WalletRepository struct {
-	DB *sql.DB
+	DB *sqlx.DB
 }
-
-// func NewWalletRepository(db *sql.DB) *WalletRepository {
-// 	return &WalletRepository{db: db}
-// }
-
-// func NewStorage() (*Storage, error) {
-//     connStr := "user=postgres dbname=wallet password=postgres sslmode=disable"
-//     db, err := sql.Open("postgres", connStr)
-//     if err != nil {
-//         return nil, err
-//     }
-//     return &Storage{db: db}, nil
 
 func (wr *WalletRepository) UpdateBalance(id uuid.UUID, amount int, opType models.OperationType) error {
 	var query string
-	fmt.Println(opType)
+	//fmt.Println(opType)
+	if amount <= 0 {
+		return fmt.Errorf("amount must be positive")
+	}
+
+	tx, err := wr.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("fail transaction: %w", err)
+	}
+	fmt.Println("trans")
+
+	defer tx.Rollback()
+
+	fmt.Println("check ok")
 	switch opType {
 	case "DEPOSIT":
-		query = "UPDATE wallets SET balance = balance + $1 WHERE id = $2"
+		query = "UPDATE wallets SET balance = balance + $1 WHERE id = $2 RETURNING balance"
 	case "WITHDRAW":
-		query = "UPDATE wallets SET balance = balance - $1 WHERE id = $2 AND balance >= $1"
+		query = "UPDATE wallets SET balance = balance - $1 WHERE id = $2 AND balance >= $1 RETURNING balance"
 	default:
 		return fmt.Errorf("invalid op type")
 	}
+	fmt.Println("case")
 
-	_, err := wr.DB.Exec(query, amount, id)
+	var newBalance int
+	err = tx.QueryRow(query, amount, id).Scan(&newBalance)
+	if err != nil {
+		if err == sql.ErrNoRows && opType == "WITHDRAW" {
+			return fmt.Errorf("insufficient funds")
+		}
+		return fmt.Errorf("failed to update balance: %w", err)
+	}
+	fmt.Println("get balance", newBalance)
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	fmt.Println("commit")
 	return err
 }
 
 func (wr *WalletRepository) GetBalance(id string) (int64, error) {
-
-	// stmt := `SELECT balance FROM wallets WHERE id = ?`
-	// row := wr.DB.QueryRow(stmt, id)
-
-	// w := &models.Wallet{}
-
-	// err := row.Scan(&w.ID, &w.Balance)
-	// if err != nil {
-	// 	if errors.Is(err, sql.ErrNoRows) {
-	// 		return nil, models.ErrNoRecord
-	// 	} else {
-	// 		return nil, err
-	// 	}
-	// }
-
 	var balance int64
 	err := wr.DB.QueryRow("SELECT balance FROM wallets WHERE id = $1", id).Scan(&balance)
 	return balance, err
-	//return w, nil
 }
 
-// func (r *WalletRepository) Create(ctx context.Context, wallet *model.Wallet) error {
-// 	_, err := r.db.ExecContext(ctx,
-// 		"INSERT INTO wallets (id, balance) VALUES ($1, $2)",
-// 		wallet.ID, wallet.Balance)
-// 	return err
-// }
+// Вызываем метод функ. запуска транзакции и если ловим ошибку, пробуем снова
+func (wr *WalletRepository) UpdateBalanceWithRetry(id uuid.UUID, amount int, opType models.OperationType, maxRetries int) error {
+	var lastErr error
 
-// func (r *WalletRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.Wallet, error) {
-// 	var wallet model.Wallet
-// 	err := r.db.QueryRowContext(ctx,
-// 		"SELECT id, balance FROM wallets WHERE id = $1", id).
-// 		Scan(&wallet.ID, &wallet.Balance)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &wallet, nil
-// }
+	for i := 0; i < maxRetries; i++ {
+		err := wr.UpdateBalance(id, amount, opType)
+		if err == nil {
+			return nil
+		}
 
-// func (r *WalletRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error {
-// 	tx, err := r.db.BeginTx(ctx, nil)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer tx.Rollback()
+		// Если словили дедлок
+		var pgErr *pq.Error
+		if errors.As(err, &pgErr) && pgErr.Code == "40P01" {
+			lastErr = err
+			delay := time.Duration(math.Pow(2, float64(i))) * time.Millisecond
+			delay += time.Duration(rand.Intn(100)) * time.Millisecond // Добавляем случайность
 
-// 	var currentBalance int64
-// 	err = tx.QueryRowContext(ctx, "SELECT balance FROM wallets WHERE id = $1 FOR UPDATE", id).
-// 		Scan(&currentBalance)
-// 	if err != nil {
-// 		return err
-// 	}
+			time.Sleep(delay)
+			continue
+		}
 
-// 	newBalance := currentBalance + amount
-// 	if newBalance < 0 {
-// 		return fmt.Errorf("insufficient funds")
-// 	}
+		return err
+	}
 
-// 	_, err = tx.ExecContext(ctx, "UPDATE wallets SET balance = $1 WHERE id = $2", newBalance, id)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return tx.Commit()
-// }
+	return fmt.Errorf("max retries (%d) reached, last error: %v", maxRetries, lastErr)
+}
